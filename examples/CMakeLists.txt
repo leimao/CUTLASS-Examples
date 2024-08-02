@@ -7,3 +7,4 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_subdirectory(gemm_api_v2)
 add_subdirectory(gemm_api_v3)
+add_subdirectory(matrix_transpose_cute)
