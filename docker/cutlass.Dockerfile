@@ -1,6 +1,6 @@
 FROM nvcr.io/nvidia/cuda:12.2.2-devel-ubuntu22.04
 
-ARG CUTLASS_VERSION=3.5.0
+ARG CUTLASS_VERSION=3.5.1
 ARG CMAKE_VERSION=3.28.0
 ARG NUM_JOBS=8
 
@@ -48,5 +48,5 @@ RUN cd /tmp && \
     tar -xvf v${CUTLASS_VERSION}.tar.gz && \
     # CUTLASS is header-only
     cp -r cutlass-${CUTLASS_VERSION}/include/* /usr/local/include/ && \
-    cp -r /tmp/cutlass-3.5.0/tools/util/include/cutlass/* /usr/local/include/cutlass/ && \
+    cp -r /tmp/cutlass-${CUTLASS_VERSION}/tools/util/include/cutlass/* /usr/local/include/cutlass/ && \
     rm -rf /tmp/*

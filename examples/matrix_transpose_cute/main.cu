@@ -49,13 +49,18 @@ __global__ void transpose_kernel(
     // (BLOCK_TILE_SIZE_N, BLOCK_TILE_SIZE_M)
     auto tensor_block_tile_dst{tensor_dst(cute::make_coord(cute::_, cute::_), blockIdx.x, blockIdx.y)};
 
-    // auto const tensor_thread_tile_src{cute::local_partition(tensor_block_tile_src, thread_layout_src, threadIdx.x, threadIdx.y)};
+    // auto const tensor_thread_tile_src{cute::local_partition(tensor_block_tile_src, thread_layout_src, {threadIdx.x, threadIdx.y})};
 
-    // auto tensor_thread_tile_dst{cute::local_partition(tensor_block_tile_dst, thread_layout_dst, threadIdx.x, threadIdx.y)};
+    // auto tensor_thread_tile_dst{cute::local_partition(tensor_block_tile_dst, thread_layout_dst, {threadIdx.x, threadIdx.y})};
 
-    auto const tensor_thread_tile_src{cute::local_partition(tensor_block_tile_src, thread_layout_src, threadIdx.x)};
+    auto const tensor_thread_tile_src{cute::local_partition(tensor_block_tile_src, thread_layout_src, threadIdx)};
 
-    auto tensor_thread_tile_dst{cute::local_partition(tensor_block_tile_dst, thread_layout_dst, threadIdx.x)};
+    auto tensor_thread_tile_dst{cute::local_partition(tensor_block_tile_dst, thread_layout_dst, threadIdx)};
+
+
+    // auto const tensor_thread_tile_src{cute::local_partition(tensor_block_tile_src, thread_layout_src, threadIdx.x)};
+
+    // auto tensor_thread_tile_dst{cute::local_partition(tensor_block_tile_dst, thread_layout_dst, threadIdx.x)};
 
     auto register_buffer{cute::make_tensor_like(tensor_thread_tile_src)};
 
@@ -153,9 +158,11 @@ int main()
 
     dim3 const grid_size{cute::size<1>(block_tiled_tensor_src), cute::size<2>(block_tiled_tensor_src)};
 
-    // dim3 const block_size{cute::size<0>(thread_layout_row_major_src), cute::size<1>(thread_layout_row_major_src)};
+    dim3 const block_size{cute::size<0>(thread_layout_row_major_src), cute::size<1>(thread_layout_row_major_src)};
 
-    dim3 const block_size{cute::size(thread_layout_row_major_src)};
+    std::cout << "Block size: " << block_size.x << " " << block_size.y << std::endl;
+
+    // dim3 const block_size{cute::size(thread_layout_row_major_src)};
 
     transpose_kernel<<<grid_size, block_size, 0, stream>>>(block_tiled_tensor_src, block_tiled_tensor_dst, thread_layout_row_major_src, thread_layout_row_major_dst);
 
@@ -169,6 +176,19 @@ int main()
     // {
     //     std::cout << "Idx " << i << ": " << matrix_transposed_reference[i] << " " << matrix_transposed[i] << std::endl;
     // }
+
+    std::cout << "--------------------------" << std::endl;
+    auto const tensor1{cute::local_partition(block_tiled_tensor_src(cute::make_coord(cute::_, cute::_), 0, 0), thread_layout_row_major_src, 8, 31)};
+    std::cout << cute::size<0>(tensor1) << std::endl;
+    std::cout << cute::size<1>(tensor1) << std::endl;
+    // std::cout << cute::size<2>(tensor1) << std::endl;
+
+    std::cout << "=================" << std::endl;
+    auto const tensor2{cute::local_partition(block_tiled_tensor_src(cute::make_coord(cute::_, cute::_), 0, 0), thread_layout_row_major_src, 0)};
+    std::cout << cute::size<0>(tensor2) << std::endl;
+    std::cout << cute::size<1>(tensor2) << std::endl;
+    // std::cout << cute::size<2>(tensor2) << std::endl;
+
 
     // Verify the result.
     for (size_t i{0}; i < matrix_size; ++i)
