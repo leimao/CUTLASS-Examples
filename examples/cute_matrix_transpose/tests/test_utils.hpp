@@ -1,4 +1,5 @@
 #include <iostream>
+#include <random>
 
 #include <cuda_runtime.h>
 
@@ -49,9 +50,18 @@ void transpose(T const* src, T* dst, unsigned int M, unsigned int N)
 template <class T>
 void initialize(T* data, unsigned int size)
 {
+    // for (unsigned int i{0}; i < size; ++i)
+    // {
+    //     data[i] = static_cast<T>(i);
+    // }
+
+    // Initialize with random numbers.
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<T> dis(0.0, 1.0);
     for (unsigned int i{0}; i < size; ++i)
     {
-        data[i] = static_cast<T>(i);
+        data[i] = static_cast<T>(dis(gen));
     }
 }
 
@@ -80,7 +90,7 @@ bool compare(T const* data, T const* ref, unsigned int size)
 
     if (!status)
     {
-        print<T>(data, ref, size);
+        // print<T>(data, ref, size);
     }
 
     return status;

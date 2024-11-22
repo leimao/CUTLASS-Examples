@@ -10,7 +10,7 @@
 template <class TENSOR_SRC, class TENSOR_DST, class SHARED_MEMORY_LAYOUT_SRC,
           class SHARED_MEMORY_LAYOUT_DST, class THREAD_LAYOUT_SRC,
           class THREAD_LAYOUT_DST>
-__global__ void
+static __global__ void
 transpose_shared_memory(TENSOR_SRC tensor_src, TENSOR_DST tensor_dst,
                         SHARED_MEMORY_LAYOUT_SRC, SHARED_MEMORY_LAYOUT_DST,
                         THREAD_LAYOUT_SRC, THREAD_LAYOUT_DST)
@@ -120,7 +120,7 @@ enum class SharedMemoryBankConflictAccessMode
 };
 
 template <typename T>
-cudaError_t launch_transpose_shared_memory_bank_conflict_base(
+static cudaError_t launch_transpose_shared_memory_bank_conflict_base(
     T const* input_matrix, T* output_matrix, unsigned int M, unsigned int N,
     SharedMemoryBankConflictAccessMode bank_conflict_access_mode,
     cudaStream_t stream)

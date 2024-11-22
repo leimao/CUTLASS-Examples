@@ -10,6 +10,7 @@ add_library(
     SHARED
     cute_matrix_transpose_naive.cu
     cute_matrix_transpose_shared_memory.cu
+    cute_matrix_transpose_shared_memory_vectorized.cu
 )
 target_include_directories(${CUTE_TRANSPOSE} PRIVATE ${CUTLASS_INCLUDE_DIR} ${CUTLASS_UTILS_INCLUDE_DIR})
 set_target_properties(${CUTE_TRANSPOSE} PROPERTIES CUDA_ARCHITECTURES native)
