@@ -1,8 +1,10 @@
-FROM nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
+FROM nvcr.io/nvidia/cuda:13.0.1-devel-ubuntu24.04
 
-ARG CMAKE_VERSION=3.30.5
-ARG GOOGLETEST_VERSION=1.15.2
+ARG CMAKE_VERSION=4.1.1
+ARG GOOGLETEST_VERSION=1.17.0
 ARG NUM_JOBS=8
+
+ARG PYTHON_VENV_PATH=/python/venv
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -17,10 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         locales \
         locales-all \
-        python3 \
-        python3-dev \
-        python3-pip \
-        python3-setuptools \
+        python3-full \
         wget \
         git && \
     apt-get clean
@@ -58,7 +57,6 @@ RUN apt-get update -y && \
         dbus \
         fontconfig \
         gnupg \
-        libasound2 \
         libfreetype6 \
         libglib2.0-0 \
         libnss3 \
@@ -74,7 +72,6 @@ RUN apt-get update -y && \
         libxrandr2 \
         libxrender1 \
         libxtst6 \
-        libgl1-mesa-glx \
         libxkbfile-dev \
         openssh-client \
         xcb \
@@ -83,7 +80,10 @@ RUN apt-get update -y && \
         qt6-base-dev && \
     apt-get clean
 
-RUN cd /usr/local/bin && \
-    ln -s /usr/bin/python3 python && \
-    ln -s /usr/bin/pip3 pip && \
+RUN mkdir -p ${PYTHON_VENV_PATH} && \
+    python3 -m venv ${PYTHON_VENV_PATH}
+
+ENV PATH=${PYTHON_VENV_PATH}/bin:$PATH
+
+RUN cd ${PYTHON_VENV_PATH}/bin && \
     pip install --upgrade pip setuptools wheel
