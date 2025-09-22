@@ -205,10 +205,18 @@ protected:
         float const memory_size{static_cast<float>(device_prop.totalGlobalMem) /
                                 (1 << 30)};
         GTEST_COUT << "Memory Size: " << memory_size << " GB" << std::endl;
+
+        int memory_clock_khz{0};
+#if CUDART_VERSION < 13000
+        memory_clock_khz = device_prop.memoryClockRate;
+#else
+        cudaError_t err{cudaDeviceGetAttribute(
+            &memory_clock_khz, cudaDevAttrMemoryClockRate, device_id)};
+#endif
         float const peak_bandwidth{
-            static_cast<float>(2.0f * device_prop.memoryClockRate *
+            static_cast<float>(2.0f * memory_clock_khz *
                                (device_prop.memoryBusWidth / 8) / 1.0e6)};
-        GTEST_COUT << "Peak Bandwitdh: " << peak_bandwidth << " GB/s"
+        GTEST_COUT << "Peak Bandwidth: " << peak_bandwidth << " GB/s"
                    << std::endl;
 
         auto const function{std::bind(launch_matrix_transpose,
