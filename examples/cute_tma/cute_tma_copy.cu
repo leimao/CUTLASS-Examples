@@ -4,6 +4,8 @@
 #include <cute/container/array_aligned.hpp>
 #include <cute/tensor.hpp>
 
+#include <cutlass/arch/barrier.h>
+#include <cutlass/cluster_launch.hpp>
 #include <cutlass/cutlass.h>
 #include <cutlass/detail/layout.hpp>
 #include <cutlass/fast_math.h>
@@ -37,12 +39,18 @@ struct SharedStorageTMA
 };
 
 template <class DataType, class TMACopyS, class TMACopyD, class GmemLayout,
-          class SmemLayout, class TileShape, int ThreadLayout>
+          class SmemLayout, class TileShape>
 __global__ static void matrix_copy(CUTE_GRID_CONSTANT TMACopyS tma_load,
                                    CUTE_GRID_CONSTANT TMACopyD tma_store,
                                    GmemLayout gmem_layout,
                                    SmemLayout smem_layout, TileShape tile_shape)
 {
+    // This is supposed to be 0 for all thread blocks, since we only have one
+    // cluster.
+    constexpr uint32_t cluster_size{1U};
+    constexpr uint16_t tma_mcast_mask{
+        (static_cast<uint16_t>(1U) << cluster_size) - 1};
+
     // Shared memory storage
     extern __shared__ uint8_t smem[];
     auto& smem_storage{
@@ -54,14 +62,14 @@ __global__ static void matrix_copy(CUTE_GRID_CONSTANT TMACopyS tma_load,
 
     // Get CUTLASS barrier wrapper object.
     auto& mbarrier{smem_storage.mbarrier};
-
+    using BarrierType = cutlass::arch::ClusterTransactionBarrier::ValueType;
     constexpr int tma_transaction_bytes{
         sizeof(cute::ArrayEngine<DataType, size(SmemLayout{})>)};
 
     // Ensure only one thread from a thread block will execute the TMA
     // operation.
     int const warp_idx{cutlass::canonical_warp_idx_sync()};
-    bool const lane_predicate{cute::elect_one_sync()};
+    bool const lane_predicate{static_cast<bool>(cute::elect_one_sync())};
 
     // Prefetch TMA descriptors for load and store from global memory to cache.
     // This is an optimization for performance.
@@ -97,26 +105,31 @@ __global__ static void matrix_copy(CUTE_GRID_CONSTANT TMACopyS tma_load,
     // cute::copy to complete the copy of the whole tile.
     auto const partitioned_block_tma_coord_src_tensor{
         block_tma_load.partition_S(block_tma_coord_src_tensor)};
-    auto const partitioned_smem_tensor{block_tma_load.partition_D(smem_tensor)};
+    auto partitioned_smem_src_tensor{block_tma_load.partition_D(smem_tensor)};
 
     auto block_tma_store{tma_store.get_slice(0)};
-    auto const partitioned_block_tma_coord_dst_tensor{
-        block_tma_store.partition_S(block_tma_coord_dst_tensor)};
-    auto const partitioned_smem_tensor_store{
+    auto const partitioned_smem_dst_tensor{
         block_tma_store.partition_S(smem_tensor)};
+    auto partitioned_block_tma_coord_dst_tensor{
+        block_tma_store.partition_D(block_tma_coord_dst_tensor)};
 
     // Perform TMA load from global memory to shared memory.
     // Only one thread in a thread block will perform the TMA operation.
     if (warp_idx == 0 && lane_predicate)
     {
         // Initialize the barrier for TMA load.
-        // The arrival count is 1.
+        // The arrival count is 1, since each thread block only performs one TMA
+        // load.
         mbarrier.init(1);
         // Set the expected transaction bytes for this barrier.
         mbarrier.arrive_and_expect_tx(tma_transaction_bytes);
-        cute::copy(tma_load.with(mbarrier),
+        // TMA load does not support the
+        // cutlass::arch::ClusterTransactionBarrier type. Need to cast it to its
+        // underlying integer type.
+        cute::copy(tma_load.with(reinterpret_cast<BarrierType&>(mbarrier),
+                                 tma_mcast_mask),
                    partitioned_block_tma_coord_src_tensor,
-                   partitioned_smem_tensor);
+                   partitioned_smem_src_tensor);
     }
 
     // Ensure mbarrier is initialized correctly before all threads start to wait
@@ -139,8 +152,8 @@ __global__ static void matrix_copy(CUTE_GRID_CONSTANT TMACopyS tma_load,
     // Perform TMA store from shared memory to global memory.
     if (warp_idx == 0 && lane_predicate)
     {
-        cute::copy(block_tma_store, partitioned_block_tma_coord_dst_tensor,
-                   partitioned_smem_tensor_store);
+        cute::copy(tma_store, partitioned_smem_dst_tensor,
+                   partitioned_block_tma_coord_dst_tensor);
         cute::tma_store_arrive();
     }
     cute::tma_store_wait<0>();
@@ -152,17 +165,18 @@ static cudaError_t launch_matrix_copy(DataType const* input_matrix,
                                       DataType* output_matrix, unsigned int m,
                                       unsigned int n, cudaStream_t stream)
 {
-    auto const tensor_shape{cute::make_shape(m, n)};
+    auto const tensor_shape{
+        cute::make_shape(static_cast<int>(m), static_cast<int>(n))};
     // Row-major global memory layout
-    auto const global_memory_layout_src{cute::make_layout(tensor_shape),
-                                        LayoutRight{}};
-    auto const global_memory_layout_dst{cute::make_layout(tensor_shape),
-                                        LayoutRight{}};
+    // auto const global_memory_layout{
+    //     cute::make_layout(tensor_shape, cute::LayoutRight{})};
+    auto const global_memory_layout{
+        cute::make_layout(tensor_shape, cute::LayoutLeft{})};
 
     auto const tensor_src{cute::make_tensor(cute::make_gmem_ptr(input_matrix),
-                                            global_memory_layout_src)};
+                                            global_memory_layout)};
     auto const tensor_dst{cute::make_tensor(cute::make_gmem_ptr(output_matrix),
-                                            global_memory_layout_dst)};
+                                            global_memory_layout)};
 
     constexpr auto TILE_M{128};
     constexpr auto TILE_N{128};
@@ -175,11 +189,11 @@ static cudaError_t launch_matrix_copy(DataType const* input_matrix,
     // Not useful for simple identity copy.
     // Cannot use arbitrary swizzled layout for TMA, because TMA only supports
     // certain swizzles. Row-major swizzled layout for TMA
-    constexpr auto swizzled_atom_tile{
-        cute::SM90::GMMA::Layout_K_SW128_Atom<DataType>{}};
+    // constexpr auto swizzled_atom_tile{
+    //     cute::SM90::GMMA::Layout_K_SW128_Atom<DataType>{}};
     // Column-major swizzled layout for TMA
-    // constexpr auto
-    // swizzled_atom_tile{cute::SM90::GMMA::Layout_MN_SW128_Atom<DataType>{}};
+    constexpr auto swizzled_atom_tile{
+        cute::SM90::GMMA::Layout_MN_SW128_Atom<DataType>{}};
     constexpr auto shared_memory_layout{
         cute::tile_to_shape(swizzled_atom_tile, tile_shape)};
 
@@ -202,8 +216,10 @@ static cudaError_t launch_matrix_copy(DataType const* input_matrix,
     constexpr auto NUM_THREADS{cute::size(thread_layout)};
 
     dim3 const thread_dim{NUM_THREADS};
-    dim3 const grid_dim{cutlass::ceil_div(cute::get<0>(tensor_shape), TILE_M),
-                        cutlass::ceil_div(cute::get<1>(tensor_shape), TILE_N)};
+    dim3 const grid_dim{static_cast<unsigned int>(cutlass::ceil_div(
+                            cute::get<0>(tensor_shape), TILE_M)),
+                        static_cast<unsigned int>(cutlass::ceil_div(
+                            cute::get<1>(tensor_shape), TILE_N))};
     dim3 const cluster_dim{1, 1, 1};
 
     // Configure shared memory
@@ -211,13 +227,20 @@ static cudaError_t launch_matrix_copy(DataType const* input_matrix,
         sizeof(SharedStorageTMA<DataType, decltype(shared_memory_layout)>)};
     // TODO: Check the size of shared memory.
 
-    void const* kernel_func = static_cast<void const*>(matrix_copy);
+    // Define the kernel function pointer type
+    using KernelFunc = void (*)(
+        decltype(tma_load), decltype(tma_store), decltype(global_memory_layout),
+        decltype(shared_memory_layout), decltype(tile_shape));
+
+    void const* kernel_func = reinterpret_cast<void const*>(
+        matrix_copy<DataType, decltype(tma_load), decltype(tma_store),
+                    decltype(global_memory_layout),
+                    decltype(shared_memory_layout), decltype(tile_shape)>);
     // In practice, the shared memory size for a certain kernel should only be
     // set once to the maximum shared memory size possible at the initialization
     // stage so that there are no complications during the runtime where the
     // same kernel is launched with different configurations.
-    cudaError_t smem_set_status =
-        set_smem_size(kernel_func, shared_memory_size);
+    cudaError_t smem_set_status{set_smem_size(kernel_func, shared_memory_size)};
     if (smem_set_status != cudaSuccess)
     {
         return smem_set_status;
@@ -230,8 +253,9 @@ static cudaError_t launch_matrix_copy(DataType const* input_matrix,
                                                    shared_memory_size,
                                                .cuda_stream = stream};
 
-    cutlass::Status launch_status{
-        cutlass::launch_kernel_on_cluster(launch_params, kernel_func)};
+    cutlass::Status launch_status{cutlass::launch_kernel_on_cluster(
+        launch_params, kernel_func, tma_load, tma_store, global_memory_layout,
+        shared_memory_layout, tile_shape)};
     if (launch_status != cutlass::Status::kSuccess)
     {
         return cudaErrorLaunchFailure;
@@ -258,19 +282,19 @@ int main(int argc, char** argv)
     unsigned int n = 1024;
 
     // Allocate and initialize
-    thrust::host_vector<Element> h_S(size(tensor_shape)); // (M, N)
-    thrust::host_vector<Element> h_D(size(tensor_shape)); // (M, N)
+    thrust::host_vector<DataType> h_S(m * n); // (M, N)
+    thrust::host_vector<DataType> h_D(m * n); // (M, N)
 
     for (int i = 0; i < h_S.size(); ++i)
     {
-        h_S[i] = static_cast<Element>(i);
+        h_S[i] = static_cast<DataType>(i);
     }
     for (int i = 0; i < h_D.size(); ++i)
     {
-        h_D[i] = static_cast<Element>(0);
+        h_D[i] = static_cast<DataType>(0);
     }
-    thrust::device_vector<Element> d_S = h_S;
-    thrust::device_vector<Element> d_D = h_D;
+    thrust::device_vector<DataType> d_S = h_S;
+    thrust::device_vector<DataType> d_D = h_D;
 
     cudaStream_t stream;
     cudaStreamCreate(&stream);
