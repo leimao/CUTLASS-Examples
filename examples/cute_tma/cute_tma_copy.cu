@@ -84,6 +84,10 @@ __global__ static void matrix_copy(CUTE_GRID_CONSTANT TMACopyS tma_load,
     // useful when some data on the global memory is not needed to be copied. In
     // our case, we want to copy the whole tensor. The coordinates are 2D and it
     // will result in using the TMA 2D copy operation.
+    // Even though it produces an implicit tensor that consists of many
+    // coordinates, Only a small fraction of them will be used as the starting
+    // coordinate for TMA copy PTX instruction, such as
+    // cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes.L2::cache_hint
     cute::Tensor const global_tma_coord_src_tensor{
         tma_load.get_tma_tensor(cute::shape(gmem_layout))};
     auto const block_coord_src{cute::make_coord(blockIdx.x, blockIdx.y)};
