@@ -284,4 +284,17 @@ int main(int argc, char** argv)
     }
     cudaStreamSynchronize(stream);
     cudaStreamDestroy(stream);
+
+    // Verify the values are correct
+    h_D = d_D;
+    for (int i = 0; i < h_D.size(); ++i)
+    {
+        if (h_D[i] != h_S[i])
+        {
+            std::cerr << "Matrix copy error at index " << i << ": " << h_D[i]
+                      << " != " << h_S[i] << std::endl;
+            return -1;
+        }
+    }
+    return 0;
 }
