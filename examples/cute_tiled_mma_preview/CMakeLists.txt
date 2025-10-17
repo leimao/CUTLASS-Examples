@@ -10,5 +10,5 @@ add_executable(
     cute_tiled_mma_preview.cu
 )
 target_include_directories(${CUTE_TILED_MMA_PREVIEW} PRIVATE ${CUTLASS_INCLUDE_DIR} ${CUTLASS_UTILS_INCLUDE_DIR})
-set_target_properties(${CUTE_TILED_MMA_PREVIEW} PROPERTIES CUDA_ARCHITECTURES native)
+# set_target_properties(${CUTE_TILED_MMA_PREVIEW} PROPERTIES CUDA_ARCHITECTURES native)
 target_compile_options(${CUTE_TILED_MMA_PREVIEW} PRIVATE --expt-relaxed-constexpr)

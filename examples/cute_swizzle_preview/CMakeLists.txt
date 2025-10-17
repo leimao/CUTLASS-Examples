@@ -10,5 +10,5 @@ add_executable(
     cute_swizzle_preview.cu
 )
 target_include_directories(${CUTE_SWIZZLE_PREVIEW} PRIVATE ${CUTLASS_INCLUDE_DIR} ${CUTLASS_UTILS_INCLUDE_DIR})
-set_target_properties(${CUTE_SWIZZLE_PREVIEW} PROPERTIES CUDA_ARCHITECTURES native)
+# set_target_properties(${CUTE_SWIZZLE_PREVIEW} PROPERTIES CUDA_ARCHITECTURES native)
 target_compile_options(${CUTE_SWIZZLE_PREVIEW} PRIVATE --expt-relaxed-constexpr)
