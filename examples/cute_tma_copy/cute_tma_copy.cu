@@ -48,6 +48,7 @@ __global__ static void matrix_copy(CUTE_GRID_CONSTANT TMACopyS tma_load,
     // This is supposed to be 0 for all thread blocks, since we only have one
     // cluster.
     constexpr uint32_t cluster_size{1U};
+    // tma_mcast_mask is 0x0001 for non-multicast.
     constexpr uint16_t tma_mcast_mask{
         (static_cast<uint16_t>(1U) << cluster_size) - 1};
 
@@ -268,61 +269,18 @@ static cudaError_t launch_matrix_copy(DataType const* input_matrix,
     return cudaSuccess;
 }
 
-// // Explicit instantiation.
-// template cudaError_t launch_vector_copy<float>(float const* input_vector,
-//                                                float* output_vector,
-//                                                unsigned int size,
-//                                                cudaStream_t stream);
-// template cudaError_t launch_vector_copy<double>(double const* input_vector,
-//                                                 double* output_vector,
-//                                                 unsigned int size,
-//                                                 cudaStream_t stream);
+// Explicit instantiation.
+template cudaError_t launch_matrix_copy<float>(float const* input_matrix,
+                                               float* output_matrix,
+                                               unsigned int m, unsigned int n,
+                                               cudaStream_t stream);
 
-int main(int argc, char** argv)
-{
-    using DataType = float;
+template cudaError_t launch_matrix_copy<double>(double const* input_matrix,
+                                                double* output_matrix,
+                                                unsigned int m, unsigned int n,
+                                                cudaStream_t stream);
 
-    unsigned int m = 1024;
-    unsigned int n = 1024;
-
-    // Allocate and initialize
-    thrust::host_vector<DataType> h_S(m * n); // (M, N)
-    thrust::host_vector<DataType> h_D(m * n); // (M, N)
-
-    for (int i = 0; i < h_S.size(); ++i)
-    {
-        h_S[i] = static_cast<DataType>(i);
-    }
-    for (int i = 0; i < h_D.size(); ++i)
-    {
-        h_D[i] = static_cast<DataType>(0);
-    }
-    thrust::device_vector<DataType> d_S = h_S;
-    thrust::device_vector<DataType> d_D = h_D;
-
-    cudaStream_t stream;
-    cudaStreamCreate(&stream);
-    cudaError_t status{
-        launch_matrix_copy(d_S.data().get(), d_D.data().get(), m, n, stream)};
-    if (status != cudaSuccess)
-    {
-        std::cerr << "Matrix copy launch failed: " << cudaGetErrorString(status)
-                  << std::endl;
-        return -1;
-    }
-    cudaStreamSynchronize(stream);
-    cudaStreamDestroy(stream);
-
-    // Verify the values are correct
-    h_D = d_D;
-    for (int i = 0; i < h_D.size(); ++i)
-    {
-        if (h_D[i] != h_S[i])
-        {
-            std::cerr << "Matrix copy error at index " << i << ": " << h_D[i]
-                      << " != " << h_S[i] << std::endl;
-            return -1;
-        }
-    }
-    return 0;
-}
+template cudaError_t
+launch_matrix_copy<cute::half_t>(cute::half_t const* input_matrix,
+                                 cute::half_t* output_matrix, unsigned int m,
+                                 unsigned int n, cudaStream_t stream);
