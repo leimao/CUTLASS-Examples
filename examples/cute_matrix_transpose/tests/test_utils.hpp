@@ -223,8 +223,9 @@ protected:
                                       thrust::raw_pointer_cast(m_d_src.data()),
                                       thrust::raw_pointer_cast(m_d_dst.data()),
                                       m_M, m_N, std::placeholders::_1)};
-        float const latency{measure_performance<T>(function, m_stream,
-                                                   num_repeats, num_warmups)};
+        std::function<cudaError_t(cudaStream_t)> bound_function{function};
+        float const latency{measure_performance(bound_function, m_stream,
+                                                num_repeats, num_warmups)};
         GTEST_COUT << "Latency: " << latency << " ms" << std::endl;
         GTEST_COUT << "Effective Bandwidth: "
                    << convert_latency_to_effective_bandwidth<T>(latency, m_M,

@@ -456,9 +456,11 @@ cudaError_t launch_matrix_transpose_shared_memory_vectorized_bank_conflict_read(
 }
 
 template <typename T>
-static cudaError_t launch_matrix_transpose_shared_memory_padded(
-    T const* input_matrix, T* output_matrix, unsigned int M, unsigned int N,
-    cudaStream_t stream)
+cudaError_t launch_matrix_transpose_shared_memory_padded(T const* input_matrix,
+                                                         T* output_matrix,
+                                                         unsigned int M,
+                                                         unsigned int N,
+                                                         cudaStream_t stream)
 {
     auto const tensor_shape{cute::make_shape(M, N)};
     auto const tensor_shape_transposed{cute::make_shape(N, M)};
@@ -540,7 +542,7 @@ static cudaError_t launch_matrix_transpose_shared_memory_padded(
 }
 
 template <typename T>
-static cudaError_t launch_matrix_transpose_shared_memory_vectorized_padded(
+cudaError_t launch_matrix_transpose_shared_memory_vectorized_padded(
     T const* input_matrix, T* output_matrix, unsigned int M, unsigned int N,
     cudaStream_t stream)
 {
@@ -666,7 +668,7 @@ constexpr int constexpr_log2(int n)
 }
 
 template <typename T>
-static cudaError_t launch_matrix_transpose_shared_memory_swizzled(
+cudaError_t launch_matrix_transpose_shared_memory_swizzled(
     T const* input_matrix, T* output_matrix, unsigned int M, unsigned int N,
     cudaStream_t stream)
 {
@@ -758,7 +760,7 @@ static cudaError_t launch_matrix_transpose_shared_memory_swizzled(
 }
 
 template <typename T>
-static cudaError_t launch_matrix_transpose_shared_memory_vectorized_swizzled(
+cudaError_t launch_matrix_transpose_shared_memory_vectorized_swizzled(
     T const* input_matrix, T* output_matrix, unsigned int M, unsigned int N,
     cudaStream_t stream)
 {

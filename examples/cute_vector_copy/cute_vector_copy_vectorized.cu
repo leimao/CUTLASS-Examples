@@ -49,9 +49,9 @@ vector_copy_vectorized(TensorSrc tensor_src, TensorDst tensor_dst,
 }
 
 template <typename T>
-static cudaError_t
-launch_vector_copy_vectorized(T const* input_vector, T* output_vector,
-                              unsigned int size, cudaStream_t stream)
+cudaError_t launch_vector_copy_vectorized(T const* input_vector,
+                                          T* output_vector, unsigned int size,
+                                          cudaStream_t stream)
 {
     using VectorType = cute::uint128_t;
     CUTE_STATIC_ASSERT(sizeof(VectorType) % sizeof(T) == 0,

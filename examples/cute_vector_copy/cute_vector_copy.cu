@@ -43,8 +43,8 @@ static __global__ void vector_copy(TensorSrc tensor_src, TensorDst tensor_dst,
 }
 
 template <typename T>
-static cudaError_t launch_vector_copy(T const* input_vector, T* output_vector,
-                                      unsigned int size, cudaStream_t stream)
+cudaError_t launch_vector_copy(T const* input_vector, T* output_vector,
+                               unsigned int size, cudaStream_t stream)
 {
     auto const tensor_shape{cute::make_shape(size)};
     auto const global_memory_layout_src{cute::make_layout(tensor_shape)};

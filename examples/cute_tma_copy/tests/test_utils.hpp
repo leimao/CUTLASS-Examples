@@ -1,5 +1,5 @@
-#ifndef CUTE_VECTOR_COPY_TEST_UTILS_HPP
-#define CUTE_VECTOR_COPY_TEST_UTILS_HPP
+#ifndef CUTE_TMA_COPY_TEST_UTILS_HPP
+#define CUTE_TMA_COPY_TEST_UTILS_HPP
 
 #include <iostream>
 
@@ -7,6 +7,8 @@
 
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
+
+#include <cutlass/half.h>
 
 #define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 
@@ -35,41 +37,58 @@ void checkLast(char const* file, int const line)
     }
 }
 
-// Transpose a M x N row-major matrix.
+// Copy a matrix from source to destination (row-major)
 template <class T>
-void copy(T const* src, T* dst, unsigned int size)
+void copy_matrix(T const* src, T* dst, unsigned int m, unsigned int n)
 {
+    unsigned int const size = m * n;
     for (unsigned int i{0}; i < size; ++i)
     {
         dst[i] = src[i];
     }
 }
 
-// Initialize a data array.
+// Initialize a matrix with values based on indices
 template <class T>
-void initialize(T* data, unsigned int size)
+void initialize_matrix(T* data, unsigned int m, unsigned int n)
 {
+    unsigned int const size = m * n;
     for (unsigned int i{0}; i < size; ++i)
     {
         data[i] = static_cast<T>(i);
     }
 }
 
-// Print a data array and a reference array.
+// Print a matrix and a reference matrix for comparison
 template <class T>
-void print(T const* data, T const* ref, unsigned int size)
+void print_matrix(T const* data, T const* ref, unsigned int m, unsigned int n)
 {
+    unsigned int const size = m * n;
     for (unsigned int i{0}; i < size; ++i)
     {
         std::cout << i << " " << data[i] << " " << ref[i] << std::endl;
     }
 }
 
-// Compare a data array with a reference array.
+// Specialized template for half precision printing
+template <>
+void print_matrix(cutlass::half_t const* data, cutlass::half_t const* ref,
+                  unsigned int m, unsigned int n)
+{
+    unsigned int const size = m * n;
+    for (unsigned int i{0}; i < size; ++i)
+    {
+        std::cout << i << " " << static_cast<float>(data[i]) << " "
+                  << static_cast<float>(ref[i]) << std::endl;
+    }
+}
+
+// Compare a matrix with a reference matrix
 template <class T>
-bool compare(T const* data, T const* ref, unsigned int size)
+bool compare_matrix(T const* data, T const* ref, unsigned int m, unsigned int n)
 {
     bool status{true};
+    unsigned int const size = m * n;
     for (unsigned int i{0}; i < size; ++i)
     {
         if (data[i] != ref[i])
@@ -80,7 +99,7 @@ bool compare(T const* data, T const* ref, unsigned int size)
 
     if (!status)
     {
-        print<T>(data, ref, size);
+        print_matrix<T>(data, ref, m, n);
     }
 
     return status;
@@ -122,15 +141,17 @@ float measure_performance(std::function<T(cudaStream_t)> const& bound_function,
 }
 
 template <class T>
-float convert_latency_to_effective_bandwidth(float latency, unsigned int size)
+float convert_latency_to_effective_bandwidth(float latency, unsigned int m,
+                                             unsigned int n)
 {
-    size_t const total_size{size * sizeof(T) * 2};
+    size_t const total_size{m * n * sizeof(T) * 2}; // Read + Write
     float const bandwidth{total_size / (latency / 1.0e3f) / (1 << 30)};
     return bandwidth;
 }
 
 template <typename T>
-class TestVectorCopy : public ::testing::TestWithParam<std::tuple<unsigned int>>
+class TestTmaCopy
+    : public ::testing::TestWithParam<std::tuple<unsigned int, unsigned int>>
 {
 protected:
     void SetUp() override
@@ -138,8 +159,11 @@ protected:
         // Create CUDA stream.
         CHECK_CUDA_ERROR(cudaStreamCreate(&m_stream));
 
-        // Get parameter.
-        m_size = std::get<0>(GetParam());
+        // Get parameters.
+        std::tie(m_m, m_n) = GetParam();
+
+        // Calculate total size
+        m_size = m_m * m_n;
 
         // Use thrust to create the host and device vectors.
         m_h_src = thrust::host_vector<T>(m_size);
@@ -150,8 +174,8 @@ protected:
         m_d_dst = thrust::device_vector<T>(m_size);
 
         // Initialize the host vectors.
-        initialize(m_h_src.data(), m_h_src.size());
-        copy(m_h_src.data(), m_h_dst_ref.data(), m_size);
+        initialize_matrix(m_h_src.data(), m_m, m_n);
+        copy_matrix(m_h_src.data(), m_h_dst_ref.data(), m_m, m_n);
 
         // Copy the host vectors to the device vectors.
         m_d_src = m_h_src;
@@ -163,13 +187,13 @@ protected:
         CHECK_CUDA_ERROR(cudaStreamDestroy(m_stream));
     }
 
-    void RunTest(cudaError_t (*launch_vector_copy)(T const*, T*, unsigned int,
-                                                   cudaStream_t))
+    void RunTest(cudaError_t (*launch_matrix_copy)(T const*, T*, unsigned int,
+                                                   unsigned int, cudaStream_t))
     {
         // Launch the kernel.
-        CHECK_CUDA_ERROR(launch_vector_copy(
+        CHECK_CUDA_ERROR(launch_matrix_copy(
             thrust::raw_pointer_cast(m_d_src.data()),
-            thrust::raw_pointer_cast(m_d_dst.data()), m_size, m_stream));
+            thrust::raw_pointer_cast(m_d_dst.data()), m_m, m_n, m_stream));
 
         // Synchronize the stream.
         CHECK_CUDA_ERROR(cudaStreamSynchronize(m_stream));
@@ -179,18 +203,18 @@ protected:
 
         // Compare the data.
         ASSERT_TRUE(
-            compare(m_h_dst.data(), m_h_dst_ref.data(), m_h_dst.size()));
+            compare_matrix(m_h_dst.data(), m_h_dst_ref.data(), m_m, m_n));
     }
 
-    void MeasurePerformance(cudaError_t (*launch_vector_copy)(T const*, T*,
-                                                              unsigned int,
-                                                              cudaStream_t),
-                            unsigned int num_repeats = 20,
-                            unsigned int num_warmups = 20)
+    void MeasurePerformance(
+        cudaError_t (*launch_matrix_copy)(T const*, T*, unsigned int,
+                                          unsigned int, cudaStream_t),
+        unsigned int num_repeats = 20, unsigned int num_warmups = 20)
     {
-        GTEST_COUT << "Size: " << m_size << std::endl;
+        GTEST_COUT << "Matrix Size: " << m_m << " x " << m_n
+                   << " (total: " << m_size << ")" << std::endl;
 
-        // Query deive name and peak memory bandwidth.
+        // Query device name and peak memory bandwidth.
         int device_id{0};
         CHECK_CUDA_ERROR(cudaGetDevice(&device_id));
         cudaDeviceProp device_prop;
@@ -213,26 +237,27 @@ protected:
         GTEST_COUT << "Peak Bandwidth: " << peak_bandwidth << " GB/s"
                    << std::endl;
 
-        auto const function{std::bind(launch_vector_copy,
+        auto const function{std::bind(launch_matrix_copy,
                                       thrust::raw_pointer_cast(m_d_src.data()),
                                       thrust::raw_pointer_cast(m_d_dst.data()),
-                                      m_size, std::placeholders::_1)};
+                                      m_m, m_n, std::placeholders::_1)};
         std::function<cudaError_t(cudaStream_t)> bound_function{function};
         float const latency{measure_performance(bound_function, m_stream,
                                                 num_repeats, num_warmups)};
         GTEST_COUT << "Latency: " << latency << " ms" << std::endl;
         GTEST_COUT << "Effective Bandwidth: "
-                   << convert_latency_to_effective_bandwidth<T>(latency, m_size)
+                   << convert_latency_to_effective_bandwidth<T>(latency, m_m,
+                                                                m_n)
                    << " GB/s" << std::endl;
         GTEST_COUT << "Peak Bandwidth Percentage: "
                    << 100.0f *
                           convert_latency_to_effective_bandwidth<T>(latency,
-                                                                    m_size) /
+                                                                    m_m, m_n) /
                           peak_bandwidth
                    << "%" << std::endl;
     }
 
-    unsigned int m_size;
+    unsigned int m_m, m_n, m_size;
 
     cudaStream_t m_stream;
 
@@ -244,12 +269,16 @@ protected:
     thrust::device_vector<T> m_d_dst;
 };
 
-class TestVectorCopyFloat : public TestVectorCopy<float>
+class TestTmaCopyFloat : public TestTmaCopy<float>
 {
 };
 
-class TestVectorCopyDouble : public TestVectorCopy<double>
+class TestTmaCopyDouble : public TestTmaCopy<double>
 {
 };
 
-#endif // CUTE_VECTOR_COPY_TEST_UTILS_HPP
+class TestTmaCopyHalf : public TestTmaCopy<cutlass::half_t>
+{
+};
+
+#endif // CUTE_TMA_COPY_TEST_UTILS_HPP
