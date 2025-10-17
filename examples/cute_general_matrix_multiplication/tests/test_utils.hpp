@@ -449,7 +449,8 @@ protected:
                       std::placeholders::_1)};
         std::function<cudaError_t(cudaStream_t)> bound_custom_kernel_function{
             custom_kernel_function};
-        float const custom_kernel_latency{measure_performance(bound_custom_kernel_function, m_stream, num_repeats, num_warmups)};
+        float const custom_kernel_latency{measure_performance(
+            bound_custom_kernel_function, m_stream, num_repeats, num_warmups)};
 
         // Make sure cuBLAS does not produce errors.
         CHECK_CUBLASS_ERROR(gemm_cublas(
@@ -467,7 +468,8 @@ protected:
             thrust::raw_pointer_cast(m_d_C.data()), m_ldc, m_handle, m_stream)};
         std::function<cublasStatus_t(cudaStream_t)> bound_cublas_function{
             cublas_function};
-        float const cublas_latency{measure_performance(bound_cublas_function, m_stream, num_repeats, num_warmups)};
+        float const cublas_latency{measure_performance(
+            bound_cublas_function, m_stream, num_repeats, num_warmups)};
 
         GTEST_COUT << "cuBLAS Latency: " << cublas_latency << " ms"
                    << std::endl;

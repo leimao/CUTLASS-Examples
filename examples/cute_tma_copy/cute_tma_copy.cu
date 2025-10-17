@@ -172,7 +172,8 @@ cudaError_t launch_matrix_copy(DataType const* input_matrix,
 {
     // TMA copy has an alignment requirement of 16 bytes for both source and
     // destination addresses.
-    // Check the size of n, the fast dimension, to ensure each row meets the alignment requirement.
+    // Check the size of n, the fast dimension, to ensure each row meets the
+    // alignment requirement.
     if (sizeof(DataType) * n % 16 != 0)
     {
         return cudaErrorInvalidValue;

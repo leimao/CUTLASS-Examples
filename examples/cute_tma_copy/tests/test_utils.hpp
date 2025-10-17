@@ -72,9 +72,8 @@ void print_matrix(T const* data, T const* ref, unsigned int m, unsigned int n)
 
 // Specialized template for half precision printing
 template <>
-void print_matrix(cutlass::half_t const* data,
-                  cutlass::half_t const* ref, unsigned int m,
-                  unsigned int n)
+void print_matrix(cutlass::half_t const* data, cutlass::half_t const* ref,
+                  unsigned int m, unsigned int n)
 {
     unsigned int const size = m * n;
     for (unsigned int i{0}; i < size; ++i)
@@ -244,7 +243,7 @@ protected:
                                       m_m, m_n, std::placeholders::_1)};
         std::function<cudaError_t(cudaStream_t)> bound_function{function};
         float const latency{measure_performance(bound_function, m_stream,
-                                                   num_repeats, num_warmups)};
+                                                num_repeats, num_warmups)};
         GTEST_COUT << "Latency: " << latency << " ms" << std::endl;
         GTEST_COUT << "Effective Bandwidth: "
                    << convert_latency_to_effective_bandwidth<T>(latency, m_m,

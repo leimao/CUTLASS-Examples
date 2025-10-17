@@ -456,9 +456,11 @@ cudaError_t launch_matrix_transpose_shared_memory_vectorized_bank_conflict_read(
 }
 
 template <typename T>
-cudaError_t launch_matrix_transpose_shared_memory_padded(
-    T const* input_matrix, T* output_matrix, unsigned int M, unsigned int N,
-    cudaStream_t stream)
+cudaError_t launch_matrix_transpose_shared_memory_padded(T const* input_matrix,
+                                                         T* output_matrix,
+                                                         unsigned int M,
+                                                         unsigned int N,
+                                                         cudaStream_t stream)
 {
     auto const tensor_shape{cute::make_shape(M, N)};
     auto const tensor_shape_transposed{cute::make_shape(N, M)};
