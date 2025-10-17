@@ -2,7 +2,7 @@
 
 ## Introduction
 
-These examples demonstrate the implementation of vector copy kernels using the CuTe. The general vector copy kernel does boundary checks and can be used for any matrix size. The vector copy vectorized kernel assumes the vector size is a multiple of certain size depending on the data type.
+These examples demonstrate the implementation of vector copy kernels using CuTe. The general vector copy kernel does boundary checks and can be used for any matrix size. The vector copy vectorized kernel assumes the vector size is a multiple of certain size depending on the data type.
 
 ## Usages
 

@@ -8,6 +8,8 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
+#include <cutlass/half.h>
+
 #define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 
 #define CHECK_CUDA_ERROR(val) check((val), #val, __FILE__, __LINE__)
@@ -70,9 +72,9 @@ void print_matrix(T const* data, T const* ref, unsigned int m, unsigned int n)
 
 // Specialized template for half precision printing
 template <>
-void print_matrix<cute::half_t>(cute::half_t const* data,
-                                cute::half_t const* ref, unsigned int m,
-                                unsigned int n)
+void print_matrix(cutlass::half_t const* data,
+                  cutlass::half_t const* ref, unsigned int m,
+                  unsigned int n)
 {
     unsigned int const size = m * n;
     for (unsigned int i{0}; i < size; ++i)
@@ -240,7 +242,8 @@ protected:
                                       thrust::raw_pointer_cast(m_d_src.data()),
                                       thrust::raw_pointer_cast(m_d_dst.data()),
                                       m_m, m_n, std::placeholders::_1)};
-        float const latency{measure_performance<T>(function, m_stream,
+        std::function<cudaError_t(cudaStream_t)> bound_function{function};
+        float const latency{measure_performance(bound_function, m_stream,
                                                    num_repeats, num_warmups)};
         GTEST_COUT << "Latency: " << latency << " ms" << std::endl;
         GTEST_COUT << "Effective Bandwidth: "
@@ -275,7 +278,7 @@ class TestTmaCopyDouble : public TestTmaCopy<double>
 {
 };
 
-class TestTmaCopyHalf : public TestTmaCopy<cute::half_t>
+class TestTmaCopyHalf : public TestTmaCopy<cutlass::half_t>
 {
 };
 

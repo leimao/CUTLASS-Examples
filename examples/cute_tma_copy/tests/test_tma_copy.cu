@@ -6,12 +6,7 @@
 
 static auto const LAUNCH_MATRIX_COPY_FLOAT{launch_matrix_copy<float>};
 static auto const LAUNCH_MATRIX_COPY_DOUBLE{launch_matrix_copy<double>};
-static auto const LAUNCH_MATRIX_COPY_HALF{launch_matrix_copy<cute::half_t>};
-
-// Test with small matrix sizes - using prime numbers for dimensions
-static auto const SMALL_MATRIX_VALUES{::testing::Values(
-    std::make_tuple(2, 2), std::make_tuple(17, 23), std::make_tuple(32, 64),
-    std::make_tuple(64, 32), std::make_tuple(83, 97))};
+static auto const LAUNCH_MATRIX_COPY_HALF{launch_matrix_copy<cutlass::half_t>};
 
 // Test with power-of-2 matrix sizes
 static auto const POWER_OF_TWO_MATRIX_VALUES{::testing::Values(
@@ -35,14 +30,6 @@ TEST_P(TestTmaCopyDouble, TestTmaCopyDouble)
 }
 
 TEST_P(TestTmaCopyHalf, TestTmaCopyHalf) { RunTest(LAUNCH_MATRIX_COPY_HALF); }
-
-// Instantiate tests for small matrices
-INSTANTIATE_TEST_SUITE_P(TestTmaCopySmall, TestTmaCopyFloat,
-                         SMALL_MATRIX_VALUES);
-INSTANTIATE_TEST_SUITE_P(TestTmaCopySmall, TestTmaCopyDouble,
-                         SMALL_MATRIX_VALUES);
-INSTANTIATE_TEST_SUITE_P(TestTmaCopySmall, TestTmaCopyHalf,
-                         SMALL_MATRIX_VALUES);
 
 // Instantiate tests for power-of-2 matrices
 INSTANTIATE_TEST_SUITE_P(TestTmaCopyPowerOfTwo, TestTmaCopyFloat,

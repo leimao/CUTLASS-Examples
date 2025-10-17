@@ -5,7 +5,7 @@
 #include "cute_tma_copy.hpp"
 
 static auto const LAUNCH_MATRIX_COPY_FLOAT{launch_matrix_copy<float>};
-static auto const LAUNCH_MATRIX_COPY_HALF{launch_matrix_copy<cute::half_t>};
+static auto const LAUNCH_MATRIX_COPY_HALF{launch_matrix_copy<cutlass::half_t>};
 
 // Test with large matrices for performance measurement
 static auto const LARGE_MATRIX_VALUES{

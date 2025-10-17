@@ -164,12 +164,20 @@ __global__ static void matrix_copy(CUTE_GRID_CONSTANT TMACopyS tma_load,
     cute::tma_store_wait<0>();
 }
 
-// Assuming row-major matrix first.
+// Assuming row-major matrix.
 template <class DataType>
-static cudaError_t launch_matrix_copy(DataType const* input_matrix,
-                                      DataType* output_matrix, unsigned int m,
-                                      unsigned int n, cudaStream_t stream)
+cudaError_t launch_matrix_copy(DataType const* input_matrix,
+                               DataType* output_matrix, unsigned int m,
+                               unsigned int n, cudaStream_t stream)
 {
+    // TMA copy has an alignment requirement of 16 bytes for both source and
+    // destination addresses.
+    // Check the size of n, the fast dimension, to ensure each row meets the alignment requirement.
+    if (sizeof(DataType) * n % 16 != 0)
+    {
+        return cudaErrorInvalidValue;
+    }
+
     auto const tensor_shape{
         cute::make_shape(static_cast<int>(m), static_cast<int>(n))};
     // Row-major global memory layout
