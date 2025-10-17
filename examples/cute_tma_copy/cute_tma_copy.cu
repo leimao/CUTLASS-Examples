@@ -241,11 +241,6 @@ cudaError_t launch_matrix_copy(DataType const* input_matrix,
         sizeof(SharedStorageTMA<DataType, decltype(shared_memory_layout)>)};
     // TODO: Check the size of shared memory.
 
-    // Define the kernel function pointer type
-    using KernelFunc = void (*)(
-        decltype(tma_load), decltype(tma_store), decltype(global_memory_layout),
-        decltype(shared_memory_layout), decltype(tile_shape));
-
     void const* kernel_func = reinterpret_cast<void const*>(
         matrix_copy<DataType, decltype(tma_load), decltype(tma_store),
                     decltype(global_memory_layout),

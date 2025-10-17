@@ -12,7 +12,7 @@ add_library(
     cute_matrix_transpose_shared_memory.cu
 )
 target_include_directories(${CUTE_MATRIX_TRANSPOSE} PRIVATE ${CUTLASS_INCLUDE_DIR} ${CUTLASS_UTILS_INCLUDE_DIR})
-set_target_properties(${CUTE_MATRIX_TRANSPOSE} PROPERTIES CUDA_ARCHITECTURES native)
+# set_target_properties(${CUTE_MATRIX_TRANSPOSE} PROPERTIES CUDA_ARCHITECTURES native)
 target_compile_options(${CUTE_MATRIX_TRANSPOSE} PRIVATE --expt-relaxed-constexpr)
 
 add_subdirectory(tests)

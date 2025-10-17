@@ -12,7 +12,7 @@ add_library(
     cute_vector_copy_vectorized.cu
 )
 target_include_directories(${CUTE_VECTOR_COPY} PRIVATE ${CUTLASS_INCLUDE_DIR} ${CUTLASS_UTILS_INCLUDE_DIR})
-set_target_properties(${CUTE_VECTOR_COPY} PROPERTIES CUDA_ARCHITECTURES native)
+# set_target_properties(${CUTE_VECTOR_COPY} PROPERTIES CUDA_ARCHITECTURES native)
 target_compile_options(${CUTE_VECTOR_COPY} PRIVATE --expt-relaxed-constexpr)
 
 add_subdirectory(tests)
