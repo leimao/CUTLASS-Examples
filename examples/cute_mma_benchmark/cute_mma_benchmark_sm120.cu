@@ -32,9 +32,9 @@ struct HasScalingFactors<
 {
 };
 
-// Generic MMA profiler kernel using template expansion
+// Generic MMA benchmark kernel using template expansion
 template <typename MMA, size_t NUM_ITERS>
-__global__ void profile_mma_kernel()
+__global__ void benchmark_mma_kernel()
 {
     typename MMA::DRegisters d{};
     typename MMA::ARegisters a{};
@@ -122,11 +122,11 @@ __global__ void profile_mma_kernel()
 }
 
 // ====================================
-// Profiling Helper Function
+// Benchmark Helper Function
 // ====================================
 template <typename MMA, size_t NUM_ITERS = 1000>
-float profile_mma(char const* name, size_t num_sms, size_t blocks_per_sm = 8,
-                  size_t warps_per_block = 4)
+float benchmark_mma(char const* name, size_t num_sms, size_t blocks_per_sm = 8,
+                    size_t warps_per_block = 4)
 {
     size_t const num_runs{10};
     size_t const warmup_runs{2};
@@ -149,7 +149,7 @@ float profile_mma(char const* name, size_t num_sms, size_t blocks_per_sm = 8,
     // Warmup
     for (size_t i{0}; i < warmup_runs; ++i)
     {
-        profile_mma_kernel<MMA, NUM_ITERS><<<grid, block>>>();
+        benchmark_mma_kernel<MMA, NUM_ITERS><<<grid, block>>>();
     }
     cudaDeviceSynchronize();
 
@@ -161,7 +161,7 @@ float profile_mma(char const* name, size_t num_sms, size_t blocks_per_sm = 8,
     cudaEventRecord(start);
     for (size_t i{0}; i < num_runs; ++i)
     {
-        profile_mma_kernel<MMA, NUM_ITERS><<<grid, block>>>();
+        benchmark_mma_kernel<MMA, NUM_ITERS><<<grid, block>>>();
     }
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -195,14 +195,15 @@ float profile_mma(char const* name, size_t num_sms, size_t blocks_per_sm = 8,
     return avg_time;
 }
 
-// Helper macro to profile an MMA atom - use variadic to handle template commas
-// The MMA_TYPE should be wrapped in parentheses when it contains template
-// commas Usage: PROFILE_MMA((MMA_TYPE<with, template, args>), NUM_ITERS)
-#define PROFILE_MMA(MMA_TYPE, NUM_ITERS)                                       \
-    profile_mma<PROFILE_MMA_UNWRAP MMA_TYPE, NUM_ITERS>(                       \
+// Helper macro to benchmark an MMA atom - use variadic to handle template
+// commas The MMA_TYPE should be wrapped in parentheses when it contains
+// template commas Usage: BENCHMARK_MMA((MMA_TYPE<with, template, args>),
+// NUM_ITERS)
+#define BENCHMARK_MMA(MMA_TYPE, NUM_ITERS)                                     \
+    benchmark_mma<BENCHMARK_MMA_UNWRAP MMA_TYPE, NUM_ITERS>(                   \
         #MMA_TYPE, num_sms, blocks_per_sm, warps_per_block)
 
-#define PROFILE_MMA_UNWRAP(...) __VA_ARGS__
+#define BENCHMARK_MMA_UNWRAP(...) __VA_ARGS__
 
 // ====================================
 // Main Function
@@ -214,7 +215,7 @@ int main()
     cudaGetDeviceProperties(&prop, 0);
 
     std::cout << "========================================" << std::endl;
-    std::cout << "CUTLASS SM120 MMA Atom Profiler" << std::endl;
+    std::cout << "CUTLASS SM120 MMA Atom Benchmark" << std::endl;
     std::cout << "========================================" << std::endl;
     std::cout << "Device: " << prop.name << std::endl;
     std::cout << "Compute Capability: " << prop.major << "." << prop.minor
@@ -229,7 +230,7 @@ int main()
 
     if (prop.major * 10 + prop.minor < 120)
     {
-        std::cerr << "Error: This profiler requires SM120 or later (Blackwell "
+        std::cerr << "Error: This benchmark requires SM120 or later (Blackwell "
                      "architecture)"
                   << std::endl;
         return 1;
@@ -241,7 +242,8 @@ int main()
         8}; // Launch multiple blocks per SM for better occupancy
     size_t warps_per_block{4}; // Multiple warps per block to hide latency
 
-    std::cout << "Profiling SM120 MMA Atoms (FP8 Instructions):" << std::endl;
+    std::cout << "Benchmarking SM120 MMA Atoms (FP8 Instructions):"
+              << std::endl;
     std::cout << "Configuration: " << num_sms << " SMs × " << blocks_per_sm
               << " blocks/SM × " << warps_per_block << " warps/block = "
               << (num_sms * blocks_per_sm * warps_per_block) << " total warps"
@@ -250,86 +252,86 @@ int main()
 
     // FP32 Output (FP8 Input) MMA Atoms - 16x8x32
     std::cout << std::endl << "=== FP32 Output (E2M1 Input) ===" << std::endl;
-    PROFILE_MMA((SM120_16x8x32_TN<float_e2m1_t, float_e2m1_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e2m1_t, float_e3m2_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e2m1_t, float_e2m3_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e2m1_t, float_e4m3_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e2m1_t, float_e5m2_t, float>),
-                NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e2m1_t, float_e2m1_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e2m1_t, float_e3m2_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e2m1_t, float_e2m3_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e2m1_t, float_e4m3_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e2m1_t, float_e5m2_t, float>),
+                  NUM_ITERS);
 
     std::cout << std::endl << "=== FP32 Output (E3M2 Input) ===" << std::endl;
-    PROFILE_MMA((SM120_16x8x32_TN<float_e3m2_t, float_e2m1_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e3m2_t, float_e3m2_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e3m2_t, float_e2m3_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e3m2_t, float_e4m3_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e3m2_t, float_e5m2_t, float>),
-                NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e3m2_t, float_e2m1_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e3m2_t, float_e3m2_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e3m2_t, float_e2m3_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e3m2_t, float_e4m3_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e3m2_t, float_e5m2_t, float>),
+                  NUM_ITERS);
 
     std::cout << std::endl << "=== FP32 Output (E2M3 Input) ===" << std::endl;
-    PROFILE_MMA((SM120_16x8x32_TN<float_e2m3_t, float_e2m1_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e2m3_t, float_e3m2_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e2m3_t, float_e2m3_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e2m3_t, float_e4m3_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e2m3_t, float_e5m2_t, float>),
-                NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e2m3_t, float_e2m1_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e2m3_t, float_e3m2_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e2m3_t, float_e2m3_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e2m3_t, float_e4m3_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e2m3_t, float_e5m2_t, float>),
+                  NUM_ITERS);
 
     std::cout << std::endl << "=== FP32 Output (E4M3 Input) ===" << std::endl;
-    PROFILE_MMA((SM120_16x8x32_TN<float_e4m3_t, float_e2m1_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e4m3_t, float_e3m2_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e4m3_t, float_e2m3_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e4m3_t, float_e4m3_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e4m3_t, float_e5m2_t, float>),
-                NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e4m3_t, float_e2m1_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e4m3_t, float_e3m2_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e4m3_t, float_e2m3_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e4m3_t, float_e4m3_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e4m3_t, float_e5m2_t, float>),
+                  NUM_ITERS);
 
     std::cout << std::endl << "=== FP32 Output (E5M2 Input) ===" << std::endl;
-    PROFILE_MMA((SM120_16x8x32_TN<float_e5m2_t, float_e2m1_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e5m2_t, float_e3m2_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e5m2_t, float_e2m3_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e5m2_t, float_e4m3_t, float>),
-                NUM_ITERS);
-    PROFILE_MMA((SM120_16x8x32_TN<float_e5m2_t, float_e5m2_t, float>),
-                NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e5m2_t, float_e2m1_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e5m2_t, float_e3m2_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e5m2_t, float_e2m3_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e5m2_t, float_e4m3_t, float>),
+                  NUM_ITERS);
+    BENCHMARK_MMA((SM120_16x8x32_TN<float_e5m2_t, float_e5m2_t, float>),
+                  NUM_ITERS);
 
     // Block-scaled MMA Atoms with scaling factors - 16x8x32 VS=32
     std::cout << std::endl
               << "=== FP32 Output (Block-Scaled E2M1, VS=32, UE8M0) ==="
               << std::endl;
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e2m1_t, float_e2m1_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e2m1_t, float_e3m2_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e2m1_t, float_e2m3_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e2m1_t, float_e4m3_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e2m1_t, float_e5m2_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
@@ -337,23 +339,23 @@ int main()
     std::cout << std::endl
               << "=== FP32 Output (Block-Scaled E3M2, VS=32, UE8M0) ==="
               << std::endl;
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e3m2_t, float_e2m1_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e3m2_t, float_e3m2_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e3m2_t, float_e2m3_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e3m2_t, float_e4m3_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e3m2_t, float_e5m2_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
@@ -361,23 +363,23 @@ int main()
     std::cout << std::endl
               << "=== FP32 Output (Block-Scaled E2M3, VS=32, UE8M0) ==="
               << std::endl;
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e2m3_t, float_e2m1_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e2m3_t, float_e3m2_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e2m3_t, float_e2m3_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e2m3_t, float_e4m3_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e2m3_t, float_e5m2_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
@@ -385,23 +387,23 @@ int main()
     std::cout << std::endl
               << "=== FP32 Output (Block-Scaled E4M3, VS=32, UE8M0) ==="
               << std::endl;
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e4m3_t, float_e2m1_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e4m3_t, float_e3m2_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e4m3_t, float_e2m3_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e4m3_t, float_e4m3_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e4m3_t, float_e5m2_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
@@ -409,23 +411,23 @@ int main()
     std::cout << std::endl
               << "=== FP32 Output (Block-Scaled E5M2, VS=32, UE8M0) ==="
               << std::endl;
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e5m2_t, float_e2m1_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e5m2_t, float_e3m2_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e5m2_t, float_e2m3_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e5m2_t, float_e4m3_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x32_TN_VS<float_e5m2_t, float_e5m2_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
@@ -434,7 +436,7 @@ int main()
     std::cout << std::endl
               << "=== FP32 Output (Block-Scaled 16x8x64 E2M1, VS=32, UE8M0) ==="
               << std::endl;
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x64_TN_VS<float_e2m1_t, float_e2m1_t,
                                                  float, float_ue8m0_t, 32>),
         NUM_ITERS);
@@ -442,14 +444,14 @@ int main()
     std::cout << std::endl
               << "=== FP32 Output (Block-Scaled 16x8x64 E2M1, VS=32, UE4M3) ==="
               << std::endl;
-    PROFILE_MMA(
+    BENCHMARK_MMA(
         (SM120::BLOCKSCALED::SM120_16x8x64_TN_VS<float_e2m1_t, float_e2m1_t,
                                                  float, float_ue4m3_t, 32>),
         NUM_ITERS);
 
     std::cout << std::endl;
     std::cout << "========================================" << std::endl;
-    std::cout << "Profiling Complete" << std::endl;
+    std::cout << "Benchmarking Complete" << std::endl;
     std::cout << "========================================" << std::endl;
 
     return 0;
