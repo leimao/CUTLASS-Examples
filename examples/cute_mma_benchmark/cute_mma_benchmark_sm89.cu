@@ -17,9 +17,9 @@ struct ArraySize<T[N]>
     static constexpr size_t value = N;
 };
 
-// Generic MMA profiler kernel using template expansion
+// Generic MMA benchmark kernel using template expansion
 template <typename MMA, size_t NUM_ITERS>
-__global__ void profile_mma_kernel()
+__global__ void benchmark_mma_kernel()
 {
     typename MMA::DRegisters d{};
     typename MMA::ARegisters a{};
@@ -73,12 +73,12 @@ __global__ void profile_mma_kernel()
 }
 
 // ====================================
-// Profiling Helper Function
+// Benchmark Helper Function
 // ====================================
 template <typename MMA, size_t NUM_ITERS = 1000>
-float profile_mma(char const* name, size_t m, size_t n, size_t k,
-                  size_t num_sms, size_t blocks_per_sm = 8,
-                  size_t warps_per_block = 4)
+float benchmark_mma(char const* name, size_t m, size_t n, size_t k,
+                    size_t num_sms, size_t blocks_per_sm = 8,
+                    size_t warps_per_block = 4)
 {
     size_t const num_runs{10};
     size_t const warmup_runs{2};
@@ -94,7 +94,7 @@ float profile_mma(char const* name, size_t m, size_t n, size_t k,
     // Warmup
     for (size_t i{0}; i < warmup_runs; ++i)
     {
-        profile_mma_kernel<MMA, NUM_ITERS><<<grid, block>>>();
+        benchmark_mma_kernel<MMA, NUM_ITERS><<<grid, block>>>();
     }
     cudaDeviceSynchronize();
 
@@ -106,7 +106,7 @@ float profile_mma(char const* name, size_t m, size_t n, size_t k,
     cudaEventRecord(start);
     for (size_t i{0}; i < num_runs; ++i)
     {
-        profile_mma_kernel<MMA, NUM_ITERS><<<grid, block>>>();
+        benchmark_mma_kernel<MMA, NUM_ITERS><<<grid, block>>>();
     }
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -140,10 +140,10 @@ float profile_mma(char const* name, size_t m, size_t n, size_t k,
     return avg_time;
 }
 
-// Helper macro to profile an MMA atom
-#define PROFILE_MMA(MMA_TYPE, M, N, K, NUM_ITERS)                              \
-    profile_mma<MMA_TYPE, NUM_ITERS>(#MMA_TYPE, M, N, K, num_sms,              \
-                                     blocks_per_sm, warps_per_block)
+// Helper macro to benchmark an MMA atom
+#define BENCHMARK_MMA(MMA_TYPE, M, N, K, NUM_ITERS)                            \
+    benchmark_mma<MMA_TYPE, NUM_ITERS>(#MMA_TYPE, M, N, K, num_sms,            \
+                                       blocks_per_sm, warps_per_block)
 
 // ====================================
 // Main Function
@@ -155,7 +155,7 @@ int main()
     cudaGetDeviceProperties(&prop, 0);
 
     std::cout << "========================================" << std::endl;
-    std::cout << "CUTLASS SM89 MMA Atom Profiler" << std::endl;
+    std::cout << "CUTLASS SM89 MMA Atom Benchmark" << std::endl;
     std::cout << "========================================" << std::endl;
     std::cout << "Device: " << prop.name << std::endl;
     std::cout << "Compute Capability: " << prop.major << "." << prop.minor
@@ -170,7 +170,7 @@ int main()
 
     if (prop.major * 10 + prop.minor < 89)
     {
-        std::cerr << "Error: This profiler requires SM89 or later (Ada "
+        std::cerr << "Error: This benchmark requires SM89 or later (Ada "
                      "Lovelace architecture)"
                   << std::endl;
         return 1;
@@ -182,7 +182,7 @@ int main()
         8}; // Launch multiple blocks per SM for better occupancy
     size_t warps_per_block{4}; // Multiple warps per block to hide latency
 
-    std::cout << "Profiling SM89 MMA Atoms (FP8 Instructions):" << std::endl;
+    std::cout << "Benchmarking SM89 MMA Atoms (FP8 Instructions):" << std::endl;
     std::cout << "Configuration: " << num_sms << " SMs × " << blocks_per_sm
               << " blocks/SM × " << warps_per_block << " warps/block = "
               << (num_sms * blocks_per_sm * warps_per_block) << " total warps"
@@ -192,14 +192,14 @@ int main()
     // FP32 Output (FP8 Input) MMA Atoms - 16x8x32
     std::cout << std::endl
               << "=== FP32 Output (FP8 E4M3/E5M2 Input) ===" << std::endl;
-    PROFILE_MMA(SM89_16x8x32_F32E4M3E4M3F32_TN, 16, 8, 32, NUM_ITERS);
-    PROFILE_MMA(SM89_16x8x32_F32E4M3E5M2F32_TN, 16, 8, 32, NUM_ITERS);
-    PROFILE_MMA(SM89_16x8x32_F32E5M2E4M3F32_TN, 16, 8, 32, NUM_ITERS);
-    PROFILE_MMA(SM89_16x8x32_F32E5M2E5M2F32_TN, 16, 8, 32, NUM_ITERS);
+    BENCHMARK_MMA(SM89_16x8x32_F32E4M3E4M3F32_TN, 16, 8, 32, NUM_ITERS);
+    BENCHMARK_MMA(SM89_16x8x32_F32E4M3E5M2F32_TN, 16, 8, 32, NUM_ITERS);
+    BENCHMARK_MMA(SM89_16x8x32_F32E5M2E4M3F32_TN, 16, 8, 32, NUM_ITERS);
+    BENCHMARK_MMA(SM89_16x8x32_F32E5M2E5M2F32_TN, 16, 8, 32, NUM_ITERS);
 
     std::cout << std::endl;
     std::cout << "========================================" << std::endl;
-    std::cout << "Profiling Complete" << std::endl;
+    std::cout << "Benchmarking Complete" << std::endl;
     std::cout << "========================================" << std::endl;
 
     return 0;

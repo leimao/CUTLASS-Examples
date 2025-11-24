@@ -32,9 +32,9 @@ struct HasScalingFactors<
 {
 };
 
-// Generic Sparse MMA profiler kernel using template expansion
+// Generic Sparse MMA benchmark kernel using template expansion
 template <typename MMA, size_t NUM_ITERS>
-__global__ void profile_sparse_mma_kernel()
+__global__ void benchmark_sparse_mma_kernel()
 {
     typename MMA::DRegisters d{};
     typename MMA::ARegisters a{};
@@ -120,11 +120,11 @@ __global__ void profile_sparse_mma_kernel()
 }
 
 // ====================================
-// Profiling Helper Function
+// Benchmark Helper Function
 // ====================================
 template <typename MMA, size_t NUM_ITERS = 1000>
-float profile_sparse_mma(char const* name, size_t num_sms,
-                         size_t blocks_per_sm = 8, size_t warps_per_block = 4)
+float benchmark_sparse_mma(char const* name, size_t num_sms,
+                           size_t blocks_per_sm = 8, size_t warps_per_block = 4)
 {
     size_t const num_runs{10};
     size_t const warmup_runs{2};
@@ -147,7 +147,7 @@ float profile_sparse_mma(char const* name, size_t num_sms,
     // Warmup
     for (size_t i{0}; i < warmup_runs; ++i)
     {
-        profile_sparse_mma_kernel<MMA, NUM_ITERS><<<grid, block>>>();
+        benchmark_sparse_mma_kernel<MMA, NUM_ITERS><<<grid, block>>>();
     }
     cudaDeviceSynchronize();
 
@@ -159,7 +159,7 @@ float profile_sparse_mma(char const* name, size_t num_sms,
     cudaEventRecord(start);
     for (size_t i{0}; i < num_runs; ++i)
     {
-        profile_sparse_mma_kernel<MMA, NUM_ITERS><<<grid, block>>>();
+        benchmark_sparse_mma_kernel<MMA, NUM_ITERS><<<grid, block>>>();
     }
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -196,15 +196,15 @@ float profile_sparse_mma(char const* name, size_t num_sms,
     return avg_time;
 }
 
-// Helper macro to profile a sparse MMA atom - use variadic to handle template
+// Helper macro to benchmark a sparse MMA atom - use variadic to handle template
 // commas. The MMA_TYPE should be wrapped in parentheses when it contains
-// commas. Usage: PROFILE_SPARSE_MMA((MMA_TYPE<with, template, args>),
+// commas. Usage: BENCHMARK_SPARSE_MMA((MMA_TYPE<with, template, args>),
 // NUM_ITERS)
-#define PROFILE_SPARSE_MMA(MMA_TYPE, NUM_ITERS)                                \
-    profile_sparse_mma<PROFILE_SPARSE_MMA_UNWRAP MMA_TYPE, NUM_ITERS>(         \
+#define BENCHMARK_SPARSE_MMA(MMA_TYPE, NUM_ITERS)                              \
+    benchmark_sparse_mma<BENCHMARK_SPARSE_MMA_UNWRAP MMA_TYPE, NUM_ITERS>(     \
         #MMA_TYPE, num_sms, blocks_per_sm, warps_per_block)
 
-#define PROFILE_SPARSE_MMA_UNWRAP(...) __VA_ARGS__
+#define BENCHMARK_SPARSE_MMA_UNWRAP(...) __VA_ARGS__
 
 // ====================================
 // Main Function
@@ -216,7 +216,7 @@ int main()
     cudaGetDeviceProperties(&prop, 0);
 
     std::cout << "========================================" << std::endl;
-    std::cout << "CUTLASS SM120 Sparse MMA Atom Profiler" << std::endl;
+    std::cout << "CUTLASS SM120 Sparse MMA Atom Benchmark" << std::endl;
     std::cout << "========================================" << std::endl;
     std::cout << "Device: " << prop.name << std::endl;
     std::cout << "Compute Capability: " << prop.major << "." << prop.minor
@@ -231,7 +231,7 @@ int main()
 
     if (prop.major * 10 + prop.minor < 120)
     {
-        std::cerr << "Error: This profiler requires SM120 or later (Blackwell "
+        std::cerr << "Error: This benchmark requires SM120 or later (Blackwell "
                      "architecture)"
                   << std::endl;
         return 1;
@@ -244,7 +244,7 @@ int main()
     size_t warps_per_block{4}; // Multiple warps per block to hide latency
 
     std::cout
-        << "Profiling SM120 Sparse MMA Atoms (FP8 2:4 Structured Sparsity):"
+        << "Benchmarking SM120 Sparse MMA Atoms (FP8 2:4 Structured Sparsity):"
         << std::endl;
     std::cout << "Configuration: " << num_sms << " SMs × " << blocks_per_sm
               << " blocks/SM × " << warps_per_block << " warps/block = "
@@ -256,23 +256,23 @@ int main()
     std::cout << std::endl
               << "=== FP32 Output (Sparse E2M1 Input, 16x8x64) ==="
               << std::endl;
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e2m1_t, float_e2m1_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e2m1_t, float_e3m2_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e2m1_t, float_e2m3_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e2m1_t, float_e4m3_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e2m1_t, float_e5m2_t,
                                                 float>),
         NUM_ITERS);
@@ -280,23 +280,23 @@ int main()
     std::cout << std::endl
               << "=== FP32 Output (Sparse E3M2 Input, 16x8x64) ==="
               << std::endl;
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e3m2_t, float_e2m1_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e3m2_t, float_e3m2_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e3m2_t, float_e2m3_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e3m2_t, float_e4m3_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e3m2_t, float_e5m2_t,
                                                 float>),
         NUM_ITERS);
@@ -304,23 +304,23 @@ int main()
     std::cout << std::endl
               << "=== FP32 Output (Sparse E2M3 Input, 16x8x64) ==="
               << std::endl;
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e2m3_t, float_e2m1_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e2m3_t, float_e3m2_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e2m3_t, float_e2m3_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e2m3_t, float_e4m3_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e2m3_t, float_e5m2_t,
                                                 float>),
         NUM_ITERS);
@@ -328,23 +328,23 @@ int main()
     std::cout << std::endl
               << "=== FP32 Output (Sparse E4M3 Input, 16x8x64) ==="
               << std::endl;
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e4m3_t, float_e2m1_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e4m3_t, float_e3m2_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e4m3_t, float_e2m3_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e4m3_t, float_e4m3_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e4m3_t, float_e5m2_t,
                                                 float>),
         NUM_ITERS);
@@ -352,23 +352,23 @@ int main()
     std::cout << std::endl
               << "=== FP32 Output (Sparse E5M2 Input, 16x8x64) ==="
               << std::endl;
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e5m2_t, float_e2m1_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e5m2_t, float_e3m2_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e5m2_t, float_e2m3_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e5m2_t, float_e4m3_t,
                                                 float>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::SPARSE::SM120_SPARSE_16x8x64_TN<float_e5m2_t, float_e5m2_t,
                                                 float>),
         NUM_ITERS);
@@ -378,23 +378,23 @@ int main()
               << "=== FP32 Output (Block-Scaled Sparse E2M1, 16x8x64, VS=64, "
                  "UE8M0) ==="
               << std::endl;
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e2m1_t, float_e2m1_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e2m1_t, float_e3m2_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e2m1_t, float_e2m3_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e2m1_t, float_e4m3_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e2m1_t, float_e5m2_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
@@ -403,23 +403,23 @@ int main()
               << "=== FP32 Output (Block-Scaled Sparse E3M2, 16x8x64, VS=64, "
                  "UE8M0) ==="
               << std::endl;
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e3m2_t, float_e2m1_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e3m2_t, float_e3m2_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e3m2_t, float_e2m3_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e3m2_t, float_e4m3_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e3m2_t, float_e5m2_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
@@ -428,23 +428,23 @@ int main()
               << "=== FP32 Output (Block-Scaled Sparse E2M3, 16x8x64, VS=64, "
                  "UE8M0) ==="
               << std::endl;
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e2m3_t, float_e2m1_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e2m3_t, float_e3m2_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e2m3_t, float_e2m3_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e2m3_t, float_e4m3_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e2m3_t, float_e5m2_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
@@ -453,23 +453,23 @@ int main()
               << "=== FP32 Output (Block-Scaled Sparse E4M3, 16x8x64, VS=64, "
                  "UE8M0) ==="
               << std::endl;
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e4m3_t, float_e2m1_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e4m3_t, float_e3m2_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e4m3_t, float_e2m3_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e4m3_t, float_e4m3_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e4m3_t, float_e5m2_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
@@ -478,23 +478,23 @@ int main()
               << "=== FP32 Output (Block-Scaled Sparse E5M2, 16x8x64, VS=64, "
                  "UE8M0) ==="
               << std::endl;
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e5m2_t, float_e2m1_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e5m2_t, float_e3m2_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e5m2_t, float_e2m3_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e5m2_t, float_e4m3_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x64_TN_VS<
             float_e5m2_t, float_e5m2_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
@@ -504,7 +504,7 @@ int main()
               << "=== FP32 Output (Block-Scaled Sparse 16x8x128 E2M1, VS=64, "
                  "UE8M0) ==="
               << std::endl;
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x128_TN_VS<
             float_e2m1_t, float_e2m1_t, float, float_ue8m0_t, 64>),
         NUM_ITERS);
@@ -513,7 +513,7 @@ int main()
               << "=== FP32 Output (Block-Scaled Sparse 16x8x128 E2M1, VS=32, "
                  "UE8M0) ==="
               << std::endl;
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x128_TN_VS<
             float_e2m1_t, float_e2m1_t, float, float_ue8m0_t, 32>),
         NUM_ITERS);
@@ -522,14 +522,14 @@ int main()
               << "=== FP32 Output (Block-Scaled Sparse 16x8x128 E2M1, VS=32, "
                  "UE4M3) ==="
               << std::endl;
-    PROFILE_SPARSE_MMA(
+    BENCHMARK_SPARSE_MMA(
         (SM120::BLOCKSCALED::SPARSE::SM120_SPARSE_16x8x128_TN_VS<
             float_e2m1_t, float_e2m1_t, float, float_ue4m3_t, 32>),
         NUM_ITERS);
 
     std::cout << std::endl;
     std::cout << "========================================" << std::endl;
-    std::cout << "Profiling Complete" << std::endl;
+    std::cout << "Benchmarking Complete" << std::endl;
     std::cout << "========================================" << std::endl;
 
     return 0;
