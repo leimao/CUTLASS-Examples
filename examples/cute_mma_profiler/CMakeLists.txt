@@ -4,6 +4,24 @@ project(CUTE-MMA-PROFILER VERSION 0.0.1 LANGUAGES CXX CUDA)
 
 # Set the CUDA architecture to compile the code for
 # https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html
+set(CUTE_MMA_PROFILER_SM70 cute_mma_profiler_sm70)
+add_executable(
+    ${CUTE_MMA_PROFILER_SM70}
+    cute_mma_profiler_sm70.cu
+)
+target_include_directories(${CUTE_MMA_PROFILER_SM70} PRIVATE ${CUTLASS_INCLUDE_DIR} ${CUTLASS_UTILS_INCLUDE_DIR})
+set_target_properties(${CUTE_MMA_PROFILER_SM70} PROPERTIES CUDA_ARCHITECTURES "75")
+target_compile_options(${CUTE_MMA_PROFILER_SM70} PRIVATE --expt-relaxed-constexpr)
+
+set(CUTE_MMA_PROFILER_SM75 cute_mma_profiler_sm75)
+add_executable(
+    ${CUTE_MMA_PROFILER_SM75}
+    cute_mma_profiler_sm75.cu
+)
+target_include_directories(${CUTE_MMA_PROFILER_SM75} PRIVATE ${CUTLASS_INCLUDE_DIR} ${CUTLASS_UTILS_INCLUDE_DIR})
+set_target_properties(${CUTE_MMA_PROFILER_SM75} PROPERTIES CUDA_ARCHITECTURES "75")
+target_compile_options(${CUTE_MMA_PROFILER_SM75} PRIVATE --expt-relaxed-constexpr)
+
 set(CUTE_MMA_PROFILER_SM80 cute_mma_profiler_sm80)
 add_executable(
     ${CUTE_MMA_PROFILER_SM80}
