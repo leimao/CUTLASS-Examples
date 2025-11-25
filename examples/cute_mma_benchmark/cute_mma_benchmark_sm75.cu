@@ -14,7 +14,7 @@ struct ArraySize;
 template <typename T, size_t N>
 struct ArraySize<T[N]>
 {
-    static constexpr size_t value = N;
+    static constexpr size_t value{N};
 };
 
 // Generic MMA benchmark kernel using template expansion
@@ -27,16 +27,19 @@ __global__ void benchmark_mma_kernel()
     typename MMA::CRegisters c{};
 
     // Initialize with non-zero values to prevent optimization
-    constexpr int D_SIZE{ArraySize<typename MMA::DRegisters>::value};
-    constexpr int A_SIZE{ArraySize<typename MMA::ARegisters>::value};
-    constexpr int B_SIZE{ArraySize<typename MMA::BRegisters>::value};
-    constexpr int C_SIZE{ArraySize<typename MMA::CRegisters>::value};
+    constexpr size_t D_SIZE{ArraySize<typename MMA::DRegisters>::value};
+    constexpr size_t A_SIZE{ArraySize<typename MMA::ARegisters>::value};
+    constexpr size_t B_SIZE{ArraySize<typename MMA::BRegisters>::value};
+    constexpr size_t C_SIZE{ArraySize<typename MMA::CRegisters>::value};
 
-    for (int idx{0}; idx < A_SIZE; ++idx)
+#pragma unroll
+    for (size_t idx{0}; idx < A_SIZE; ++idx)
         a[idx] = 1;
-    for (int idx{0}; idx < B_SIZE; ++idx)
+#pragma unroll
+    for (size_t idx{0}; idx < B_SIZE; ++idx)
         b[idx] = 1;
-    for (int idx{0}; idx < C_SIZE; ++idx)
+#pragma unroll
+    for (size_t idx{0}; idx < C_SIZE; ++idx)
         c[idx] = 1;
 
 #pragma unroll 1
@@ -58,7 +61,7 @@ __global__ void benchmark_mma_kernel()
 
 // Feedback loop: copy d to c to prevent optimization
 #pragma unroll
-        for (int idx{0}; idx < C_SIZE; ++idx)
+        for (size_t idx{0}; idx < C_SIZE; ++idx)
             c[idx] = d[idx];
     }
 
