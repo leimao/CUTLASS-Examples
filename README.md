@@ -25,7 +25,7 @@ $ git submodule update --init --recursive
 
 ## CUTLASS Docker Container
 
-Docker is used to build and run CUTLASS CUDA kernels. The custom Docker container is built based on the [NVIDIA NGC CUDA](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/cuda) 12.4.1 Docker container.
+Docker is used to build and run CUTLASS CUDA kernels. The custom Docker container is built based on the [NVIDIA NGC CUDA](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/cuda) 13.0.2 Docker container.
 
 Please adjust the base Docker container CUDA version if the host computer has a different CUDA version. Otherwise, weird compilation errors and runtime errors may occur.
 
@@ -34,7 +34,7 @@ Please adjust the base Docker container CUDA version if the host computer has a 
 To build the custom Docker image, please run the following command.
 
 ```bash
-$ docker build -f docker/cuda.Dockerfile --no-cache --tag cuda:13.0.1 .
+$ docker build -f docker/cuda.Dockerfile --no-cache --tag cuda:13.0.2 .
 ```
 
 ### Run Docker Container
@@ -42,14 +42,14 @@ $ docker build -f docker/cuda.Dockerfile --no-cache --tag cuda:13.0.1 .
 To run the custom Docker container, please run the following command.
 
 ```bash
-$ docker run -it --rm --gpus device=0 -v $(pwd):/mnt -w /mnt cuda:13.0.1
+$ docker run -it --rm --gpus device=0 -v $(pwd):/mnt -w /mnt cuda:13.0.2
 ```
 
 To run the custom Docker container with NVIDIA Nsight Compute, please run the following command.
 
 ```bash
 $ xhost +
-$ docker run -it --rm --gpus device=0 -v $(pwd):/mnt -w /mnt -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --cap-add=SYS_ADMIN --security-opt seccomp=unconfined --network host cuda:13.0.1
+$ docker run -it --rm --gpus device=0 -v $(pwd):/mnt -w /mnt -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --cap-add=SYS_ADMIN --security-opt seccomp=unconfined --network host cuda:13.0.2
 $ xhost -
 ```
 

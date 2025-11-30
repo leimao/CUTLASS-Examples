@@ -1,6 +1,6 @@
-FROM nvcr.io/nvidia/cuda:13.0.1-devel-ubuntu24.04
+FROM nvcr.io/nvidia/cuda:13.0.2-devel-ubuntu24.04
 
-ARG CMAKE_VERSION=4.1.1
+ARG CMAKE_VERSION=4.2.0
 ARG GOOGLETEST_VERSION=1.17.0
 ARG NUM_JOBS=8
 
