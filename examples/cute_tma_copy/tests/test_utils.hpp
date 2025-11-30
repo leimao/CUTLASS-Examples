@@ -179,6 +179,17 @@ protected:
 
         // Copy the host vectors to the device vectors.
         m_d_src = m_h_src;
+
+        int device{};
+        cudaGetDevice(&device);
+        cudaDeviceProp prop{};
+        cudaGetDeviceProperties(&prop, device);
+        // SM90: major=9, minor=0; SM100: major=10, minor=0
+        if (!((prop.major == 9 && prop.minor == 0) ||
+              (prop.major == 10 && prop.minor == 0)))
+        {
+            GTEST_SKIP() << "TMA tests only supported on SM90 or SM100 GPUs.";
+        }
     }
 
     void TearDown() override
