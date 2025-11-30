@@ -10,18 +10,18 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install package dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    software-properties-common \
-    autoconf \
-    automake \
-    libtool \
-    pkg-config \
-    ca-certificates \
-    locales \
-    locales-all \
-    python3-full \
-    wget \
-    git && \
+        build-essential \
+        software-properties-common \
+        autoconf \
+        automake \
+        libtool \
+        pkg-config \
+        ca-certificates \
+        locales \
+        locales-all \
+        python3-full \
+        wget \
+        git && \
     apt-get clean
 
 # System locale
@@ -52,32 +52,32 @@ RUN cd /tmp && \
 # https://leimao.github.io/blog/Docker-Nsight-Compute/
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends \
-    apt-transport-https \
-    ca-certificates \
-    dbus \
-    fontconfig \
-    gnupg \
-    libfreetype6 \
-    libglib2.0-0 \
-    libnss3 \
-    libsqlite3-0 \
-    libx11-xcb1 \
-    libxcb-glx0 \
-    libxcb-xkb1 \
-    libxcomposite1 \
-    libxcursor1 \
-    libxdamage1 \
-    libxi6 \
-    libxml2 \
-    libxrandr2 \
-    libxrender1 \
-    libxtst6 \
-    libxkbfile-dev \
-    openssh-client \
-    xcb \
-    xkb-data \
-    libxcb-cursor0 \
-    qt6-base-dev && \
+        apt-transport-https \
+        ca-certificates \
+        dbus \
+        fontconfig \
+        gnupg \
+        libfreetype6 \
+        libglib2.0-0 \
+        libnss3 \
+        libsqlite3-0 \
+        libx11-xcb1 \
+        libxcb-glx0 \
+        libxcb-xkb1 \
+        libxcomposite1 \
+        libxcursor1 \
+        libxdamage1 \
+        libxi6 \
+        libxml2 \
+        libxrandr2 \
+        libxrender1 \
+        libxtst6 \
+        libxkbfile-dev \
+        openssh-client \
+        xcb \
+        xkb-data \
+        libxcb-cursor0 \
+        qt6-base-dev && \
     apt-get clean
 
 RUN mkdir -p ${PYTHON_VENV_PATH} && \
